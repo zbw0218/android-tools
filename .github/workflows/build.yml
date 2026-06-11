@@ -215,3 +215,43 @@ jobs:
           $HOME/android-tools/bin/fastboot --version
           $HOME/android-tools/bin/make_f2fs -V
           $HOME/android-tools/bin/sload_f2fs -V
+  cross-aarch64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install cross toolchain & deps
+        run: |
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            cmake ninja-build pkg-config python3 \
+            libusb-1.0-0-dev:arm64 \
+            libssl-dev:arm64 \
+            zlib1g-dev:arm64 \
+            libfmt-dev:arm64 \
+            libbrotli-dev:arm64 \
+            libprotobuf-dev:arm64 protobuf-compiler
+
+      - name: Configure (aarch64)
+        run: |
+          cmake -S . -B build-aarch64 \
+            -DCMAKE_TOOLCHAIN_FILE=toolchain-aarch64.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DANDROID_TOOLS_USE_BUNDLED_FMT=OFF \
+            -DANDROID_TOOLS_USE_BUNDLED_LIBUSB=OFF \
+            -GNinja
+
+      - name: Build adb
+        run: |
+          ninja -C build-aarch64 adb
+          aarch64-linux-gnu-strip build-aarch64/adb
+
+      - name: Upload adb
+        uses: actions/upload-artifact@v4
+        with:
+          name: adb-aarch64-glibc
+          path: build-aarch64/adb
